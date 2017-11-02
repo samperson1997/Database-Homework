@@ -1,4 +1,8 @@
 import java.sql.Connection;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class Dormitory {
     private Connection con;
@@ -8,9 +12,15 @@ public class Dormitory {
         Dormitory dormitory = new Dormitory();
         long startTime, endTime;
 
-        System.out.println("#2");
+//        System.out.println("#2");
+//        startTime = System.currentTimeMillis();
+//        dormitory.createTable();
+//        endTime = System.currentTimeMillis();
+//        System.out.println("Time: " + (endTime - startTime) + " ms");
+
+        System.out.println("#3");
         startTime = System.currentTimeMillis();
-        dormitory.createTable();
+        dormitory.insertData();
         endTime = System.currentTimeMillis();
         System.out.println("Time: " + (endTime - startTime) + " ms");
 
@@ -28,6 +38,10 @@ public class Dormitory {
         }
     }
 
+    /**
+     * #2
+     * 建表
+     */
     private void createTable() {
         String createBuilding = "CREATE TABLE building\n" +
                 "(\n" +
@@ -58,5 +72,35 @@ public class Dormitory {
 
         String[] statements = {createBuilding, createDepartment, createStudent};
         util.executeSQLs(statements, con);
+    }
+
+    /**
+     * 3
+     * 插入数据
+     */
+    private void insertData() {
+        Map<String, String> dormitoryPhoneMap = new HashMap<>();
+        List<String[]> dormitoryPhoneList = util.readFile("src/main/resources/电话.txt");
+        for (String[] dormitoryPhone : dormitoryPhoneList) {
+            for (String s : dormitoryPhone) {
+                if (s.contains(";")) {
+                    dormitoryPhoneMap.put(s.split(";")[0], s.split(";")[1]);
+                }
+            }
+        }
+
+
+        List<String[]> studentList = new ArrayList<>();
+        List<String[]> studentRawList = util.readExcelFile("src/main/resources/分配方案.xls");
+        for (String[] student : studentRawList) {
+            for (String s : student) {
+//                if(s.split(",")[1].startsWith("M")) {
+//                    studentRawList.add(s.split(","));
+//                    System.out.println(s.split(","));
+//                }
+                System.out.println(s);
+            }
+
+        }
     }
 }
