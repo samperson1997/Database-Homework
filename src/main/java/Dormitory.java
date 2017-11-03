@@ -1,8 +1,5 @@
 import java.sql.Connection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Dormitory {
     private Connection con;
@@ -56,7 +53,7 @@ public class Dormitory {
     }
 
     /**
-     * #2
+     * 2
      * 建表
      */
     private void createTable() {
@@ -109,12 +106,12 @@ public class Dormitory {
         studentList.remove(0); // 去掉标题行
 
         // 插入department
-        HashSet<String> departmentNameSet = new HashSet<>();
+        Set<String> departmentNameSet = new HashSet<>();
         for (String s : studentList) {
             departmentNameSet.add(s.split(",")[0]);
         }
 
-        HashMap<String, Integer> departmentIdMap = new HashMap<>();
+        Map<String, Integer> departmentIdMap = new HashMap<>();
         Integer departmentCount = 1;
 
         for (String department : departmentNameSet) {
@@ -123,13 +120,13 @@ public class Dormitory {
         }
 
         // 插入building
-        HashMap<String, String[]> buildingMaps = new HashMap<>();
+        Map<String, String[]> buildingMaps = new HashMap<>();
         for (String s : studentList) {
             //build_name, build_campus, build_price
             buildingMaps.put(s.split(",")[5], new String[]{s.split(",")[4], s.split(",")[6].split(";")[0]});
         }
 
-        HashMap<String, Integer> buildingIdMap = new HashMap<>();
+        Map<String, Integer> buildingIdMap = new HashMap<>();
         Integer buildingCount = 1;
 
         for (String key : buildingMaps.keySet()) {
@@ -219,6 +216,8 @@ public class Dormitory {
 
         util.executeSQL(selectMales, con);
         util.executeSQL(selectFemales, con);
-        util.executeSQLs(new String[]{updateMales, updateFemales}, con);
+
+        String[] statements = {updateMales, updateFemales};
+        util.executeSQLs(statements, con);
     }
 }
