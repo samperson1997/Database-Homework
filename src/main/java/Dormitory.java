@@ -12,24 +12,35 @@ public class Dormitory {
         Dormitory dormitory = new Dormitory();
         long startTime, endTime;
 
-//        System.out.println("#2");
-//        startTime = System.currentTimeMillis();
-//        dormitory.createTable();
-//        endTime = System.currentTimeMillis();
-//        System.out.println("Time: " + (endTime - startTime) + " ms");
-//
-//        System.out.println("#3");
-//        startTime = System.currentTimeMillis();
-//        dormitory.insertData();
-//        endTime = System.currentTimeMillis();
-//        System.out.println("Time: " + (endTime - startTime) + " ms");
+        System.out.println("#2 建表");
+        startTime = System.currentTimeMillis();
+        dormitory.createTable();
+        endTime = System.currentTimeMillis();
+        System.out.println("Time: " + (endTime - startTime) + " ms");
 
-        System.out.println("#4");
+        System.out.println("#3 插入数据");
+        startTime = System.currentTimeMillis();
+        dormitory.insertData();
+        endTime = System.currentTimeMillis();
+        System.out.println("Time: " + (endTime - startTime) + " ms");
+
+        System.out.println("#4 查询“王小星”同学所在宿舍楼的所有院系");
         startTime = System.currentTimeMillis();
         dormitory.searchWangXiaoxing();
         endTime = System.currentTimeMillis();
         System.out.println("Time: " + (endTime - startTime) + " ms");
 
+        System.out.println("#5 陶园一舍的住宿费用提高至 1200 元");
+        startTime = System.currentTimeMillis();
+        dormitory.updatePrice();
+        endTime = System.currentTimeMillis();
+        System.out.println("Time: " + (endTime - startTime) + " ms");
+
+        System.out.println("#6 软件学院男女研究生互换宿舍楼");
+        startTime = System.currentTimeMillis();
+        dormitory.exchangeBuilding();
+        endTime = System.currentTimeMillis();
+        System.out.println("Time: " + (endTime - startTime) + " ms");
     }
 
     public Dormitory() {
@@ -142,9 +153,72 @@ public class Dormitory {
     /**
      * 4
      * 查询“王小星”同学所在宿舍楼的所有院系
-     *
      */
     private void searchWangXiaoxing() {
+        String statement = "SELECT DISTINCT dept_name\n" +
+                "FROM department\n" +
+                "WHERE dept_id IN\n" +
+                "      (SELECT s.stu_dept_id\n" +
+                "       FROM student s\n" +
+                "       WHERE s.stu_build_id =\n" +
+                "             (SELECT s2.stu_build_id\n" +
+                "              FROM student s2\n" +
+                "              WHERE s2.stu_name = '王小星'));";
+        util.executeSQL(statement, con);
+    }
 
+    /**
+     * 5
+     * 陶园一舍的住宿费用提高至 1200 元
+     */
+    private void updatePrice() {
+        String statement = "UPDATE building\n" +
+                "SET build_price = 1200\n" +
+                "WHERE build_name = '陶园1舍';";
+        util.executeSQL(statement, con);
+    }
+
+    /**
+     * 6
+     * 软件学院男女研究生互换宿舍楼
+     */
+    private void exchangeBuilding() {
+        String selectMales = "SELECT DISTINCT stu_build_id\n" +
+                "INTO @male_build_id\n" +
+                "FROM student\n" +
+                "WHERE stu_gender = '男'\n" +
+                "      AND stu_dept_id IN\n" +
+                "          (SELECT dept_id\n" +
+                "           FROM department\n" +
+                "           WHERE dept_name = '软件学院');";
+
+        String selectFemales = "SELECT DISTINCT stu_build_id\n" +
+                "INTO @female_build_id\n" +
+                "FROM student\n" +
+                "WHERE stu_gender = '女'\n" +
+                "      AND stu_dept_id IN\n" +
+                "          (SELECT dept_id\n" +
+                "           FROM department\n" +
+                "           WHERE dept_name = '软件学院');";
+
+        String updateMales = "UPDATE student\n" +
+                "SET stu_build_id = @female_build_id\n" +
+                "WHERE stu_gender = '男'\n" +
+                "      AND stu_dept_id IN\n" +
+                "          (SELECT dept_id\n" +
+                "           FROM department\n" +
+                "           WHERE dept_name = '软件学院');";
+
+        String updateFemales = "UPDATE student\n" +
+                "SET stu_build_id = @male_build_id\n" +
+                "WHERE stu_gender = '女'\n" +
+                "      AND stu_dept_id IN\n" +
+                "          (SELECT dept_id\n" +
+                "           FROM department\n" +
+                "           WHERE dept_name = '软件学院');";
+
+        util.executeSQL(selectMales, con);
+        util.executeSQL(selectFemales, con);
+        util.executeSQLs(new String[]{updateMales, updateFemales}, con);
     }
 }
