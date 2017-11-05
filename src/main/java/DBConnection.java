@@ -4,7 +4,7 @@ public class DBConnection {
     private static final String driverName = "com.mysql.jdbc.Driver";
     private static final String userName = "root";
     private static final String password = "199769szs";
-    private static final String URL = "jdbc:mysql://localhost/DatabaseHomework2?useSSL=true"
+    private static final String URL = "jdbc:mysql://localhost/DatabaseHomework2?useSSL=true&rewriteBatchedStatements=true"
             + "&useUnicode=true&characterEncoding=UTF8";
 
     public DBConnection() {

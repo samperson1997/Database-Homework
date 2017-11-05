@@ -1,4 +1,6 @@
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -7,6 +9,8 @@ import java.util.*;
 public class Bike {
     private Connection con;
     private Util util;
+    private PreparedStatement pstmt;
+    private PreparedStatement pstmt1;
 
     public static void main(String[] args) {
         Bike bike = new Bike();
@@ -98,10 +102,19 @@ public class Bike {
     private void insertData() {
         // 插入bike
         List<String[]> bikeList = util.readFile("src/main/resources/bike.txt");
-        for (String[] bike : bikeList) {
-            for (String s : bike) {
-                util.executeSQL("INSERT INTO bike (bike_id) VALUES (" + s + ");", con);
+        try {
+            pstmt = con.prepareStatement("INSERT INTO bike (bike_id) VALUES (?)");
+            for (String[] bike : bikeList) {
+                for (String s : bike) {
+//                util.executeSQL("INSERT INTO bike (bike_id) VALUES (" + s + ");", con);
+                    pstmt.setString(1, s);
+                    pstmt.addBatch();
+                }
             }
+            pstmt.executeBatch();
+            con.commit();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
 
         // 插入place
@@ -116,67 +129,114 @@ public class Bike {
 
         Map<String, Integer> placeIdMap = new HashMap<>();
         Integer placeCount = 1;
+        try {
+            pstmt = con.prepareStatement("INSERT INTO place (place_name) VALUES (?)");
 
-        for (String place : placeSet) {
-            util.executeSQL("INSERT INTO place (place_name) VALUES ('" + place + "');", con);
-            placeIdMap.put(place, placeCount++);
+            for (String place : placeSet) {
+                pstmt.setString(1, place);
+                pstmt.addBatch();
+
+//            util.executeSQL("INSERT INTO place (place_name) VALUES ('" + place + "');", con);
+                placeIdMap.put(place, placeCount++);
+            }
+            pstmt.executeBatch();
+            con.commit();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
 
         // 插入user
         List<String[]> userList = util.readFile("src/main/resources/user.txt");
         Map<String, String> userAmountMap = new HashMap<>();
-        for (String[] user : userList) {
-            for (String s : user) {
-                userAmountMap.put(s.split(";")[0], s.split(";")[3]);
-                util.executeSQL("INSERT INTO user (user_id, user_name, user_phone, user_amount) VALUES ("
-                        + s.split(";")[0] + ", '" + s.split(";")[1] + "', '" + s.split(";")[2] + "', " + s.split(";")[3] + ");", con);
-            }
+        try {
+            pstmt = con.prepareStatement("INSERT INTO user (user_id, user_name, user_phone, user_amount) VALUES (?,?,?,?)");
 
+            for (String[] user : userList) {
+                for (String s : user) {
+                    userAmountMap.put(s.split(";")[0], s.split(";")[3]);
+//                util.executeSQL("INSERT INTO user (user_id, user_name, user_phone, user_amount) VALUES ("
+//                        + s.split(";")[0] + ", '" + s.split(";")[1] + "', '" + s.split(";")[2] + "', " + s.split(";")[3] + ");", con);
+                    pstmt.setInt(1, Integer.parseInt(s.split(";")[0]));
+                    pstmt.setString(2, s.split(";")[1]);
+                    pstmt.setString(3, s.split(";")[2]);
+                    pstmt.setDouble(4, Double.parseDouble(s.split(";")[3]));
+                    pstmt.addBatch();
+                }
+            }
+            pstmt.executeBatch();
+            con.commit();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
 
         // 插入record
         DateFormat recDateFormat = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
         DateFormat sqlDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-        for (String[] record : recordList) {
-            for (String s : record) {
-                String[] ssplit = s.split(";");
-                try {
-                    //计算本次record_cost
-                    int minutes = (int) (recDateFormat.parse(ssplit[5]).getTime() - recDateFormat.parse(ssplit[3]).getTime()) / 1000;
-                    int rec_cost;
-                    if (minutes <= 1800) {
-                        rec_cost = 1;
-                    } else if (minutes <= 3600) {
-                        rec_cost = 2;
-                    } else if (minutes <= 5400) {
-                        rec_cost = 3;
-                    } else {
-                        rec_cost = 4;
+        try {
+            pstmt = con.prepareStatement("INSERT INTO record (rec_cost, rec_user_id, rec_bike_id, rec_start_place_id, " +
+                    "rec_start_time, rec_end_place_id, rec_end_time) VALUES (?,?,?,?,?,?,?)");
+            pstmt1 = con.prepareStatement("UPDATE user\n" +
+                    "SET user_amount = ? WHERE user_id = ?");
+            for (String[] record : recordList) {
+                for (String s : record) {
+                    String[] ssplit = s.split(";");
+                    try {
+                        //计算本次record_cost
+                        int minutes = (int) (recDateFormat.parse(ssplit[5]).getTime() - recDateFormat.parse(ssplit[3]).getTime()) / 1000;
+                        int rec_cost;
+                        if (minutes <= 1800) {
+                            rec_cost = 1;
+                        } else if (minutes <= 3600) {
+                            rec_cost = 2;
+                        } else if (minutes <= 5400) {
+                            rec_cost = 3;
+                        } else {
+                            rec_cost = 4;
+                        }
+
+                        // 判断user余额是否足够
+                        String user_id = ssplit[0].trim().replaceAll("[^(a-zA-Z0-9\\u4e00-\\u9fa5)]", "");
+                        double user_amount = Double.parseDouble(userAmountMap.get(user_id)) - rec_cost;
+                        if (user_amount > 0) {
+
+                            // 足够，则插入record
+                            pstmt.setInt(1, rec_cost);
+                            pstmt.setInt(2, Integer.parseInt(user_id));
+                            pstmt.setInt(3, Integer.parseInt(ssplit[1]));
+                            pstmt.setInt(4, placeIdMap.get(ssplit[2]));
+                            pstmt.setString(5, sqlDateFormat.format(recDateFormat.parse(ssplit[3])));
+                            pstmt.setInt(6, placeIdMap.get(ssplit[4]));
+                            pstmt.setString(7, sqlDateFormat.format(recDateFormat.parse(ssplit[5])));
+                            pstmt.addBatch();
+
+//                        util.executeSQL("INSERT INTO record (rec_cost, rec_user_id, rec_bike_id, rec_start_place_id, " +
+//                                "rec_start_time, rec_end_place_id, rec_end_time) VALUES ("
+//                                + rec_cost + ", " + user_id + ", " + ssplit[1] + ", " + placeIdMap.get(ssplit[2]) + ", '"
+//                                + sqlDateFormat.format(recDateFormat.parse(ssplit[3])) + "', " + placeIdMap.get(ssplit[4]) + ", '"
+//                                + sqlDateFormat.format(recDateFormat.parse(ssplit[5])) + "');", con);
+
+                            // 并更新用户余额
+                            pstmt1.setDouble(1, user_amount);
+                            pstmt1.setInt(2, Integer.parseInt(user_id));
+                            pstmt1.addBatch();
+//
+//                        util.executeSQL("UPDATE user\n" +
+//                                "SET user_amount = " + user_amount
+//                                + "WHERE user_id = " + user_id + ";", con);
+                        }
+
+                    } catch (ParseException e) {
+                        e.printStackTrace();
                     }
-
-                    // 判断user余额是否足够
-                    String user_id = ssplit[0].trim().replaceAll("[^(a-zA-Z0-9\\u4e00-\\u9fa5)]", "");
-                    double user_amount = Double.parseDouble(userAmountMap.get(user_id)) - rec_cost;
-                    if (user_amount > 0) {
-                        // 足够，则插入record
-                        util.executeSQL("INSERT INTO record (rec_cost, rec_user_id, rec_bike_id, rec_start_place_id, " +
-                                "rec_start_time, rec_end_place_id, rec_end_time) VALUES ("
-                                + rec_cost + ", " + user_id + ", " + ssplit[1] + ", " + placeIdMap.get(ssplit[2]) + ", '"
-                                + sqlDateFormat.format(recDateFormat.parse(ssplit[3])) + "', " + placeIdMap.get(ssplit[4]) + ", '"
-                                + sqlDateFormat.format(recDateFormat.parse(ssplit[5])) + "');", con);
-
-                        // 并更新用户余额
-                        util.executeSQL("UPDATE user\n" +
-                                "SET user_amount = " + user_amount
-                                + "WHERE user_id = " + user_id + ";", con);
-                    }
-
-                } catch (ParseException e) {
-                    e.printStackTrace();
                 }
 
             }
+            pstmt.executeBatch();
+            pstmt1.executeBatch();
+            con.commit();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
 
     }
